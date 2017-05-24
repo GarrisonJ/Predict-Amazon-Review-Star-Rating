@@ -2,7 +2,7 @@
 ## Capstone Project
 
 Garrison Jensen\
-March 26th, 2017
+May 24th, 2017
 
 ## I. Definition
 
@@ -39,7 +39,7 @@ $Recall = \frac{\text{True Positives}}{\text{True Positives} + \text{False Negat
 
 An F1-score is a popular metric to measure the performance of classifiers. An F1-score can be interpreted as a weighted average of precision and recall. [^2] The range of an F1-score is between 0 and 1, with the best score being 1.
 
-The dataset is asymmetrical. 54% of the Amazon ratings in our dataset are five stars; this means if a model always guesses five stars it would be right 54% of the time. We don’t want to favor models that guess five stars too often. This is why we are using the f1-score as our metric; it takes both false positives and false negatives into account. Using F1 scores to evaluate our models will allow us to favor models that have both high precision and recall.
+Our dataset is asymmetrical. 54% of the Amazon ratings in our dataset are five stars; this means if a model always guesses five stars it would be right 54% of the time. We don’t want to favor models that guess five stars too often. This is why we are using the f1-score as our metric; it takes both false positives and false negatives into account. Using F1 scores to evaluate our models will allow us to favor models that have both high precision and recall.
 
 [^2]: http://scikit-learn.org/stable/modules/generated/sklearn.metrics.f1_score.html#sklearn.metrics.f1_score
 
@@ -47,27 +47,27 @@ The dataset is asymmetrical. 54% of the Amazon ratings in our dataset are five s
 
 ### Data Exploration
 
-It's not possible to leave a review without a rating, but it is possible to leave a rating without a review. We ignore ratings not paired with a review.
+It's impossible to leave a review without a rating, but it is possible to leave a rating without a review. We ignore ratings not paired with a review.
 
-It’s also important to note that most reviews (over 50%) are 5-star reviews.  We need to take that into account when splitting our data into training and testing sets. It's important that we stratify the data, so we don't get uneven datasets. 
+It’s also important to note that most reviews (over 50%) are 5-star reviews.  We need to take that into account when splitting our data into training and testing sets. It's important that we stratify the data, so we don't get uneven datasets.
 
-#### Example reviews
+_Table 1_ is a random sample from the dataset. Later we will take a look at how each model does against this sample.
+
+#### Table 1: Example Reviews
 
 |Rating|Reviews|
 |------|-----------------------------------------------------------------|
-|2|The charging port was loose. I got that soldered in. Then needed a new battery as well. $100 later (not including cost of purchase) I have a usable phone. The phone should not have been sold in the state it was in.|
-|5|I feel so LUCKY to have found this used (phone to us & not used hard at all), phone on line from someone who upgraded and sold this one. My Son liked his old one that finally fell apart after 2.5+ years and didn't want an upgrade!! Thank you Seller, we really appreciate it & your honesty re: said used phone.I recommend this seller very highly & would but from them again!!|
-|4|nice phone, nice up grade from my pantach revue. Very clean set up and easy set up. never had an android phone but they are fantastic to say the least. perfect size for surfing and social media. great phone samsung|
-|4|It works good but it goes slow sometimes but its a very good phone I love it|
-|5|Very pleased|
-|2|Phone looks good but wouldn't stay charged, had to buy new battery. Still couldn't stay charged long.so I trashed it.MONEY lost, never again will I buy from this person! !!!|
-|4|Great phone to replace my lost phone. The only thing is the volume up button does not work, but I can still go into settings to adjust. Other than that, it does the job until I am eligible to upgrade my phone again.Thaanks!|
-|1|I already had a phone with problems... I know it stated it was used, but dang, it did not state that it did not charge. I wish I would have read these comments then I would have not purchased this item.... and its cracked on the side.. damaged goods is what it is.... If trying to charge it another way does not work I am requesting for my money back... AND I WILL GET MY MONEY BACK...SIGNED AN UNHAPPY CUSTOMER....|
-
+|5|Excellent product! It's working in Chile with Argentinian and Italian SIM cards. Very good battery life (almost 7 days with regular use).|
+|4|Purchased this phone for my son after breaking his iphone. We're pleased with the RCA and he hasn't had any issues with the phone, usage or connectivity and we're on the AT&T network.|
+|4|My daughter loves her new phone.|
+|2|Stopped working after 6 days. Amazon refunded money with no issues.|
+|1|No lo recomiendo. No funciona en Venezuela. No viene con idioma español solo ingles y francés.Not recommend. Does not work in Venezuela.|
+|3|I love the keyboard on the phone/and wifi, but the volume is not that great and earpiece did not work with phone.|
 
 ### Exploratory Visualization
 
 ![Rating Distribution](images/ratingCountBarGraph.png)\
+
 
 ![Review Length Distribution](images/reviewLengthBarGraph.png)\
 
@@ -75,16 +75,18 @@ It’s also important to note that most reviews (over 50%) are 5-star reviews.  
 ### Algorithms and Techniques
 ### Benchmark
 
-We are going to use sklearns implementation of logistic regression [^6] as our benchmark. This is a linear model that is capable of multiclass classification. 
+We are going to use sklearns implementation of logistic regression [^3] as our benchmark. 
 
-For the benchmark, we are not going to do any parameter tuning. However, we will do some parameter tuning later during the refinement stage. 
+Even though logistic regression can only handle binary classification problems, sklearns implementation gives us the option to use a _One-vs-Rest_ technique; it trains against each class one at a time with all other samples counted as negative examples. This makes logistic regression a linear model capable of multiclass classification. 
+
+For the benchmark, we are not going to do any parameter tuning; we are going to use sklearns default parameters. As we will see, logistic regression does fairly well right out of the box.
 
 ```python
 benchmark_linear_model = LogisticRegression().fit(X_train, y_train)
 f1_score(y_test, benchmark_linear_model.predict(X_test), average='weighted')
 ```
 
-[^6]: http://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html
+[^3]: http://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html
 
 ## III. Methodology
 
@@ -96,7 +98,7 @@ There are several preprocessing steps we need to take before training. First, so
 data = data[data['Reviews'].isnull()==False]
 ```
 
-Next, some of the reviews have some formatting that we want to get rid of. We also remove all characters not in the English alphabet (including punctuation) and set everything to lowercase:
+Next, some of the reviews have some formatting that we want to get rid of. We also want to remove all characters not in the English alphabet (including punctuation) and set everything to lowercase:
 
 ```python
 def clean_text(string):
@@ -105,15 +107,15 @@ def clean_text(string):
     string = string.lower()
     return string
 ```
-[^3]
+[^4]
 
 At this point each review is a bunch of lowercase words. Now we need to do some kind of feature extraction.
 
-We are going to use __term frequency–inverse document frequency__ (TF-IDF)[^4] as our feature extraction strategy. TF-IDF takes into account document length and term frequency when building features. We don't want long reviews to seem more relevant just because they are long, we also don't want to overvalue words that appears many times but do not provide very much information. TF-IDF weights the words based on it's frequency in the document and the document length.
+We are going to use __term frequency–inverse document frequency__ (TF-IDF)[^5] as our feature extraction strategy. TF-IDF takes into account document length and term frequency when building features. We don't want long reviews to seem more relevant just because they are long, we also don't want to overvalue words that appears many times but do not provide very much information. TF-IDF weights the words based on it's frequency in the document and the document length.
 
 $\text{TF/IDF} = \text{Term Frequency} \times \text{Inverse Document Frequency}$
 
-TF-IDF uses a bag of words with weights to represent a document. However, this will miss some relationships between words. For example "not good" and "very good" both contain the word "good" but one is has the inverse meaning. We can help fix this problem using the `ngram_range` option in sklearns implementation of TD-IDF. `ngram_range` allows us to set the length of words that can be considered together. Setting this correctly will take some guessing and checking.
+TF-IDF uses a bag of words with weights to represent a document. However, this will miss some relationships between words. For example "not good" and "very good" both contain the word "good" but one is has the inverse meaning. We can help fix this problem using the `ngram_range` option in sklearns implementation of TD-IDF. `ngram_range` allows us to set the number of words that can be considered together. Setting this correctly will take some guessing and checking.
 
 Finally, we can look at what TF-IDF considers the most relevant phrases. 
 
@@ -129,38 +131,93 @@ Finally, we can look at what TF-IDF considers the most relevant phrases.
 
 Great! We know we are on the right track because these phrases intuitively seem relevant.
 
-[^3]: BeautifulSoup is a Python library for pulling data out of HTML and XML files. We are using it here to get the text from the reviews without the xml formatting. 
-[^4]: http://scikit-learn.org/stable/modules/generated/sklearn.feature_extraction.text.TfidfVectorizer.html
+[^4]: BeautifulSoup is a Python library for pulling data out of HTML and XML files. We are using it here to get the text from the reviews without the xml formatting. 
+[^5]: http://scikit-learn.org/stable/modules/generated/sklearn.feature_extraction.text.TfidfVectorizer.html
 
 ### Implementation
 
-We are going to try to use a logistic regression algorithm, multinomial Naive Bayes classifier, and a Stochastic Gradient Descent classifier to predict ratings. 
+We are going to use a _Multinomial Naive Bayes_ classifier and a _Stochastic Gradient Descent_ classifier to predict ratings.
 
-The logistic regression algorithms is going to be the same as our benchmark, except we are going to tune the parameters. 
+We are going to use sklearn’s implementation of the multinomial-Naive-Bayes classifier and Stochastic-Gradient-Descent classifier. Both are relatively simple to use; the tricky part is parameter tuning. I chose both algorithms for performance reasons (these algorithms must run on a MacBook Pro with no GPU), both algorithms scale well to large datasets and large feature sets.
 
-We are going to use sklearn's implementation of multinomial-Naive-Bayes classifier and Stochastic-Gradient-Descent classifier. Both are fairly simple to use, the difficult part is parameter tuning. Both algorithms were chosen for performance reasons (These algorithms must run on a macbook pro with no GPU). Because our data set has a large number of features, SVM was not possible under reasonable time constraints.
+#### MultinomialNB
 
-Each algorithm was trained using 70% of the data (30% was saved for testing).
+MultinomialNB is a naive Bayes classifier. Naive Bayes algorithms are used extensively in text classification problems. They are highly scalable, in fact, MultinomialNB is $O(n)$ (n=training samples size) in training time.
+
+MultinomialNB has an alpha hypterparamter that we will set using GridSearchCV. The alpha paramter determines what value we give the when we see a feature that we haven't encountered in the testing data. We can't use `0` because MultinomialNB multiplies these probabilities together and our whole prediction becomes `0`. For example, if we find a 5-star review with a single word that we've never seen in a 5-star review before we don't want our prediction to be `0`.
+
+```python
+parameters = { 'alpha': [0.1, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2] }
+clf1 = GridSearchCV(MultinomialNB(), parameters)
+clf1.fit(X_train, y_train)
+```
+
+#### SGDClassifier
+
+SGDClassifier is a very efficient algorithm that uses _stochastic gradient descent_ to build a model. SGDClassifier isn't the model itself; it's a method of building a model. We can specify which model we want to build using the `loss` parameter.
+
+SGDClassifier has many hypterparamters to play with; we are going to tune 4 parameters: alpha, n_iter, penalty, and loss. The alpha parameter is a constant that multiplies the regularization term, n_iter is the number of passes over the training data, the penalty parameter is the regularization term, and loss is the loss function (the model to train).
+
+The SGDClassifier guide on sklearn's site[^6] gives some reasonable ranges to search over for alpha and n_iter. It recommends the range `10.0**-np.arange(1,7)` for alpha and `np.ceil(10**6 / n)` (n is the size of the training set) as a first guess for n_iter. Since our training size has `289,645` rows, it recommends a n_iter of 3, so we are going to try a couple of values around 3. For penalty, we are just going to try every possible value. Finally, we are going to try three loss functions: `hinge` (linear SVM), `log` (logistic regression), `perceptron` (perceptron algorithm).
+
+```python
+parameters = [{ 'loss': ['hinge', 'log', 'perceptron'],
+                'alpha': 10.0**-np.arange(1,7), 
+                'penalty': ['l1', 'l2', 'elasticnet'],
+                'n_iter': [1,2,3,4,5]
+              }]
+clf2 = GridSearchCV(SGDClassifier(), parameters)
+clf2.fit(X_train, y_train)
+```
+
+[^6]: http://scikit-learn.org/stable/modules/sgd.html#tips-on-practical-use
 
 ### Refinement
 
-Parameter tuning was done using sklearn's GridSearchCV algorithm. GridSearchCV does an exhaustive search over specified parameter values. 
-
-Parameter tuning on the feature extraction algorithm was just as important as tuning the learning algorithms. Modifying the ngram_range parameter made a large difference in the `F1` scores we could achieve.
+Parameter tuning was done using sklearn’s GridSearchCV algorithm; GridSearchCV does an exhaustive search over specified parameter values. You can find the refinement strategy for each particular algorithm above.
 
 ## IV. Results
 
 ### Model Evaluation and Validation
 
-During development, 30% of the data was saved for evaluating the models. The performance of these models can be evaluated through their F1-scores:
+We save 30% of the data for testing. Now we can compare the models by seeing their performance on this data. We can look at their F1-scores, and, to help us visualize their performance, their confusion matrices.
 
 #### F-Scores
 
-|LogisticRegression (benchmark)|LogisticRegression (Tuned model)|NaiveBayes|SGD|
-|----------------|----------------|----------------|----------------|
-|0.7847|0.234|0.8405|0.8612|
+```text
+LogisticRegression:
+             precision    recall  f1-score   support
 
-Another interesting characteristic of these models is the confusion matrices produced by running the models on the testing data:
+          1     0.7775    0.9228    0.8439     21701
+          2     0.9449    0.3886    0.5507      7417
+          3     0.8867    0.4376    0.5860      9529
+          4     0.8280    0.4123    0.5505     18412
+          5     0.8085    0.9818    0.8868     67074
+
+avg / total     0.8201    0.8098    0.7862    124133
+
+MultinomialNB:
+             precision    recall  f1-score   support
+
+          1     0.8572    0.9091    0.8824     21701
+          2     0.9322    0.6029    0.7323      7417
+          3     0.8781    0.5940    0.7086      9529
+          4     0.8530    0.5527    0.6708     18412
+          5     0.8385    0.9744    0.9014     67074
+
+avg / total     0.8526    0.8491    0.8390    124133
+
+SGDClassifier:
+             precision    recall  f1-score   support
+
+          1     0.8529    0.9333    0.8913     21701
+          2     0.9223    0.6288    0.7478      7417
+          3     0.8791    0.6374    0.7390      9529
+          4     0.8527    0.5853    0.6942     18412
+          5     0.8663    0.9787    0.9191     67074
+
+avg / total     0.8663    0.8653    0.8568    124133
+```
 
 #### Confusion Matrices
 
@@ -168,28 +225,31 @@ Another interesting characteristic of these models is the confusion matrices pro
 
 ![Naive Bayes Confusion Matrix](images/confusionMatrixNaiveBayes.png)\
 
-![SGD Confusion Matrix](images/confusionMatrixSGD.png)
+![SGD Confusion Matrix](images/confusionMatrixSGD.png)\
 
-These confusion matrices tell us that the models have an easier time with the 5-star and 1-star reviews than the other reviews. This makes sense because 5-star and 1-star reviews are probably more distinct than than mid-level ratings. 
 
-It's also clear from both the F1-score and confusion matrices that the stochastic gradient descent model outperforms the others.
+These confusion matrices tell us that the models have an easier time with the 5-star and 1-star reviews than the other reviews. Reviews with 5-star and 1-star are probably more straightforward because people who write these reviews use very distinct words. 
+
+It’s clear from both the F1-score and confusion matrices that the stochastic gradient descent model outperforms the others.
 
 ### Justification
 
-The final stochastic gradient descent learning model (SGDClassifier) has a F1-Score of `0.8612`, this is much better than the benchmark model which has a score of `0.7847`. We can look at the example reviews from _(Table 666)_ and see how each classifier did:
+The final stochastic gradient descent learning model (SGDClassifier) has a F1-Score of `0.8568`, this is much better than the benchmark model which has a score of `0.7862`. We can look at the example reviews from _Table 1_ and see how each classifier did:
 
+#### Table 2: Predictions on Example Reviews
 
-|actual|p1|p2|p3|text|
+|Rating|LR|MNB|SGD|Review|
 |---|---|---|---|---|
-|1|1|1|1|The charging port was loose. I got that soldered i...|
-|5|5|5|5|I feel so LUCKY to have found this used (phone to ...|
-|1|1|5|1|nice phone, nice up grade from my pantach revue. V...|
-|3|1|3|3|It works good but it goes slow sometimes but its a...|
-|2|2|4|2|Very pleased|
-|4|1|4|4|Phone looks good but wouldn't stay charged, had to...|
-|2|1|2|2|Great phone to replace my lost phone. The only thi...|
-|4|5|4|4|I already had a phone with problems... I know it s...|
+|5|5|5|5|Excellent product! It's working in Chile with Arge...|
+|4|5|5|5|Purchased this phone for my son after breaking his...|
+|4|5|5|5|My daughter loves her new phone.|
+|2|1|2|2|Stopped working after 6 days. Amazon refunded mone...|
+|1|5|5|5|No lo recomiendo. No funciona en Venezuela. No vie...|
+|3|3|4|3|I love the keyboard on the phone/and wifi, but the...|
 
+We can see that the classifiers have a hard time differentiating between 4 and 5 star reviews and 2 and 1 star reviews. One of the reviews has Spanish words, almost all the reviews are English so it's not surprising that that all three classifier got that predictions wrong. 
+
+The final model does a good job of finding the general sentiment of a review. If you want to determine if a review is positive or negative, then this model is probably good enough. If you want a model that can differentiate between similar star ratings (like 3-star and 4-star reviews), then more work needs to be done. 
 
 ## V. Conclusion
 
@@ -212,10 +272,13 @@ To create this model I took the following steps:
   6. The models were tested against the testing data.
   7. The models were compared using F1-scoring as a metric.
 
-I found feature-extraction and parameter tuning as the most difficult steps in this project. The performance of my models was not very good until I decided to use the `ngram_range` parameter in the feature extraction algorithm to extract phrases from the text rather than just words. For parameter tuning I had to research and find useful parameters and ranges to use for tuning. `SGDClassifier` performed poorly with the default `penalty` parameter, it wasn't until I added the parameter to the grid search that it started performing well.
+I found feature-extraction and parameter tuning as the most complicated steps in this project. The performance of my models was not very good until I decided to use the `ngram_range` parameter in the feature extraction algorithm to extract phrases from the text rather than just words. For parameter tuning, I had to research and find useful parameters and ranges to use for tuning. `SGDClassifier` performed poorly with the default penalty parameter; it wasn’t until I added the parameter to the grid
+search that it started performing well.
 
 ### Improvement
 
-A solution not explored in this report is a recurrent neural network. A good candidate would be the use of the Keras[^5] python library. Keras is a deep learning library that would be useful in building a neural network model to predict ratings.
+All three models have low recall on reviews with star ratings between 2 and 4. Even for a human, it’s difficult to differentiate between these reviews. The difference between a 3-star and 4-star review is very subtle. A good place to look for improvements are ways to improve recall for these mid-star reviews.
 
-[^5]: https://keras.io/
+A solution not explored in this report is a neural network. Many people have found success using neural networks for text classification problems. A good candidate would be the use of the Keras[^7] python library. Keras neural network library that would be useful in building a neural network model to predict ratings.
+
+[^7]: https://keras.io/

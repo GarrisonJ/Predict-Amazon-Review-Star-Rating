@@ -1,0 +1,7 @@
+# README
+
+The data for this project can be found in data.zip, or at kaggle.com: https://www.kaggle.com/PromptCloudHQ/amazon-reviews-unlocked-mobile-phones
+
+Besides the standard libraries used in other Udacity ML nanodegree projects, there are two more that need to be installed:
+  - Beautiful Soup for extracting data: https://www.crummy.com/software/BeautifulSoup/
+  - word_cloud for generating word clouds: https://github.com/amueller/word_cloud
