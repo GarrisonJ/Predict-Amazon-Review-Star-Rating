@@ -47,11 +47,17 @@ Our dataset is asymmetrical. 54% of the Amazon ratings in our dataset are five s
 
 ### Data Exploration
 
-It's impossible to leave a review without a rating, but it is possible to leave a rating without a review. We ignore ratings not paired with a review.
+PromptCloud[^99] extracted 400,000 reviews of unlocked mobile phones from Amazon and provided the data on Kaggle.com. The data was extracted on December, 2016.
 
-It’s also important to note that most reviews (over 50%) are 5-star reviews.  We need to take that into account when splitting our data into training and testing sets. It's important that we stratify the data, so we don't get uneven datasets.
+The data can be found online at the following web address: [https://www.kaggle.com/PromptCloudHQ/amazon-reviews-unlocked-mobile-phones](https://www.kaggle.com/PromptCloudHQ/amazon-reviews-unlocked-mobile-phones)
 
-_Table 1_ is a random sample from the dataset. Later we will take a look at how each model does against this sample.
+There are a few abnormalities in the data. First, there are empty reviews. It's impossible to leave a review without a rating, but it is possible to leave a rating without a review. When we clean the data we should remove these empty reviews.
+
+Next, it’s also important to note that most reviews (over 50%) are 5-star reviews.  We need to take that into account when splitting our data into training and testing sets. It's important that we stratify the data, so we don't get uneven datasets.
+
+_Table 1_ is a random sample from the dataset. We will look at these example reviews later to see how each model does against this sample.
+
+[^99]: https://www.promptcloud.com/
 
 #### Table 1: Example Reviews
 
@@ -66,25 +72,64 @@ _Table 1_ is a random sample from the dataset. Later we will take a look at how 
 
 ### Exploratory Visualization
 
-![Rating Distribution](images/ratingCountBarGraph.png)\
+Figure \ref{RatingDistribution} shows the distribution or ratings. Here we can see that there are many more 5-star ratings than other ratings. It's important that we take that into account when creating our training and testing sets or we may end up with too many 5-star reviews in one set.
 
+![Rating Distribution\label{RatingDistribution}](images/ratingCountBarGraph.png)
 
-![Review Length Distribution](images/reviewLengthBarGraph.png)\
+Figure \ref{ReviewLengthDistribution} shows the distribution of review lengths. Notice that most of the review are relativity short, with very few above 200 characters. This is why it's important to take into account document length during feature extraction. We don't want long review to seem more relevant just because they are long.
 
+![Review Length Distribution\label{ReviewLengthDistribution}](images/reviewLengthBarGraph.png)
 
 ### Algorithms and Techniques
-### Benchmark
+
+We need an algorithm for feature extraction and some algorithms for classification. First, we will look at an algorithm for feature extraction, TF-IDF, and then we will look at three algorithms we will use as candidates for our classification algorithm: Logistic Regression, Gaussian Naive Bayes, and Stochastic Gradient Descent.
+
+I chose these algorithms for performance reasons (these algorithms must run on a MacBook Pro with no GPU), these algorithms scale well to large datasets and large feature sets.
+
+#### TF-IDF
+
+We are going to use __term frequency–inverse document frequency__ (TF-IDF)[^5] as our feature extraction strategy. TF-IDF takes into account document length and term frequency when building features. We don't want long reviews to seem more relevant just because they are long, we also don't want to overvalue words that appears many times but do not provide very much information. TF-IDF weights the words based on it's frequency in the document and the document length.
+
+$\text{TF/IDF} = \text{Term Frequency} \times \text{Inverse Document Frequency}$
+
+TF-IDF uses a bag of words with weights to represent a document. However, this will miss some relationships between words. For example "not good" and "very good" both contain the word "good" but one is has the inverse meaning. We can help fix this problem using the `ngram_range` option in sklearns implementation of TD-IDF. `ngram_range` allows us to set the number of words that can be considered together. Setting this correctly will take some guessing and checking.
+
+#### Logistic Regression
 
 We are going to use sklearns implementation of logistic regression [^3] as our benchmark. 
 
+Logistic regression is a classification algorithm (not a regression algorithm). Logistic regression takes a vector of features and transforms it into a probability by feeding it into a sigmoid function. Given a set of training points logistic regression will try to find a vector of weights that when multiplied to the set of features and fed into the sigmoid function we get an accurate prediction.
+
 Even though logistic regression can only handle binary classification problems, sklearns implementation gives us the option to use a _One-vs-Rest_ technique; it trains against each class one at a time with all other samples counted as negative examples. This makes logistic regression a linear model capable of multiclass classification. 
 
-For the benchmark, we are not going to do any parameter tuning; we are going to use sklearns default parameters. As we will see, logistic regression does fairly well right out of the box.
+#### Gaussian NB
+
+MultinomialNB is a naive Bayes classifier. Naive Bayes algorithms are used extensively in text classification problems. They are highly scalable, in fact, MultinomialNB is $O(n)$ (n=training samples size) in training time.
+
+Naive Bayes algorithms are based on Bayes rule: $P(A|B) = \frac{P(B|A)P(A)}{P(B)}$
+
+Here is a more concrete example of this rule:
+
+$P(\text{Review is 5-stars}|\text{Contains phrase B}) = \frac{P(\text{Contains phrase B}|\text{Review is 5-stars})P(\text{Review is 5-stars})}{P(\text{Contains phrase B})}$
+
+Training MultinomialNB is fast because there is not much to do, almost all of the work is done in the predicting step when we have to calculate the equation above for every phrase in each review.
+
+#### SGD classifier
+
+SGDClassifier is a very efficient algorithm that uses _stochastic gradient descent_ to build a model. SGDClassifier isn't the model itself; it's a method of building a model. We can specify which model we want to build using the `loss` parameter.
+
+SGDClassifier tries to find minima or maxima of the loss function by iterating over random samples from the training data. This is faster than training over all the training data. This makes SGDClassifier scalable, and a perfect candidate algorithm for our problem.
+
+### Benchmark
+
+We are going to use sklearns implementation of logistic regression [^3] as our benchmark. For the benchmark, we are not going to do any parameter tuning; we are going to use sklearns default parameters. As we will see, logistic regression does fairly well right out of the box.
 
 ```python
 benchmark_linear_model = LogisticRegression().fit(X_train, y_train)
 f1_score(y_test, benchmark_linear_model.predict(X_test), average='weighted')
 ```
+
+With the default implementation we achieve an F1-Score of __`0.7862`__.
 
 [^3]: http://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html
 
@@ -109,13 +154,18 @@ def clean_text(string):
 ```
 [^4]
 
-At this point each review is a bunch of lowercase words. Now we need to do some kind of feature extraction.
+At this point each review is a bunch of lowercase words. Now we need to do some kind of feature extraction. As stated in _Algorithms and Techniques_, we are going to use TF-IDF as our extraction algorithm.
 
-We are going to use __term frequency–inverse document frequency__ (TF-IDF)[^5] as our feature extraction strategy. TF-IDF takes into account document length and term frequency when building features. We don't want long reviews to seem more relevant just because they are long, we also don't want to overvalue words that appears many times but do not provide very much information. TF-IDF weights the words based on it's frequency in the document and the document length.
+```Python
+vectorizer = TfidfVectorizer(
+    min_df=2,               # Ignore phrases that are in fewer than 2 reviews
+    max_df=0.95,            # Ignore phrases that are in 95% of reviews
+    ngram_range = (1,4),    # Take phrases between 1 and 4 words
+    stop_words = 'english') # Remove common English words
 
-$\text{TF/IDF} = \text{Term Frequency} \times \text{Inverse Document Frequency}$
-
-TF-IDF uses a bag of words with weights to represent a document. However, this will miss some relationships between words. For example "not good" and "very good" both contain the word "good" but one is has the inverse meaning. We can help fix this problem using the `ngram_range` option in sklearns implementation of TD-IDF. `ngram_range` allows us to set the number of words that can be considered together. Setting this correctly will take some guessing and checking.
+# Extract features from reviews.
+review_features = vectorizer.fit_transform(reviews)
+```
 
 Finally, we can look at what TF-IDF considers the most relevant phrases. 
 
@@ -129,16 +179,24 @@ Finally, we can look at what TF-IDF considers the most relevant phrases.
 	* 'great'
 	* 'got'
 
-Great! We know we are on the right track because these phrases intuitively seem relevant.
+Great! We know we are on the right track because these phrases intuitively seem relevant. We also look at the word cloud in figure \ref{WordCloud} and see some similarities between the two.
 
 [^4]: BeautifulSoup is a Python library for pulling data out of HTML and XML files. We are using it here to get the text from the reviews without the xml formatting. 
 [^5]: http://scikit-learn.org/stable/modules/generated/sklearn.feature_extraction.text.TfidfVectorizer.html
 
 ### Implementation
 
-We are going to use a _Multinomial Naive Bayes_ classifier and a _Stochastic Gradient Descent_ classifier to predict ratings.
+We are going to use a _Multinomial Naive Bayes_ classifier and a _Stochastic Gradient Descent_ classifier to predict ratings. We are going to use sklearn’s implementation of these algorithms. Both are relatively simple to use; the tricky part is parameter tuning which we will get to in _Refinement_.
 
-We are going to use sklearn’s implementation of the multinomial-Naive-Bayes classifier and Stochastic-Gradient-Descent classifier. Both are relatively simple to use; the tricky part is parameter tuning. I chose both algorithms for performance reasons (these algorithms must run on a MacBook Pro with no GPU), both algorithms scale well to large datasets and large feature sets.
+If we use sklearn's default implementation of these algorithms we can achieve the following F1-Scores:
+
+| Algorithm: | MultinomialNB | SGDClassifier |
+|------------|---------------|---------------|
+| F1-Score:  | 0.6460        | 0.6100        |
+
+### Refinement
+
+Parameter tuning was done using sklearn’s GridSearchCV algorithm; GridSearchCV does an exhaustive search over specified parameter values. 
 
 #### MultinomialNB
 
@@ -161,20 +219,16 @@ SGDClassifier has many hypterparamters to play with; we are going to tune 4 para
 The SGDClassifier guide on sklearn's site[^6] gives some reasonable ranges to search over for alpha and n_iter. It recommends the range `10.0**-np.arange(1,7)` for alpha and `np.ceil(10**6 / n)` (n is the size of the training set) as a first guess for n_iter. Since our training size has `289,645` rows, it recommends a n_iter of 3, so we are going to try a couple of values around 3. For penalty, we are just going to try every possible value. Finally, we are going to try three loss functions: `hinge` (linear SVM), `log` (logistic regression), `perceptron` (perceptron algorithm).
 
 ```python
-parameters = [{ 'loss': ['hinge', 'log', 'perceptron'],
-                'alpha': 10.0**-np.arange(1,7), 
-                'penalty': ['l1', 'l2', 'elasticnet'],
-                'n_iter': [1,2,3,4,5]
+parameters = [{ 'loss': ['hinge', 'log', 'perceptron']
+              , 'alpha': 10.0**-np.arange(1,7)
+              , 'penalty': ['l1', 'l2', 'elasticnet']
+              , 'n_iter': [1,2,3,4,5]
               }]
 clf2 = GridSearchCV(SGDClassifier(), parameters)
 clf2.fit(X_train, y_train)
 ```
 
 [^6]: http://scikit-learn.org/stable/modules/sgd.html#tips-on-practical-use
-
-### Refinement
-
-Parameter tuning was done using sklearn’s GridSearchCV algorithm; GridSearchCV does an exhaustive search over specified parameter values. You can find the refinement strategy for each particular algorithm above.
 
 ## IV. Results
 
@@ -247,7 +301,7 @@ The final stochastic gradient descent learning model (SGDClassifier) has a F1-Sc
 |1|5|5|5|No lo recomiendo. No funciona en Venezuela. No vie...|
 |3|3|4|3|I love the keyboard on the phone/and wifi, but the...|
 
-We can see that the classifiers have a hard time differentiating between 4 and 5 star reviews and 2 and 1 star reviews. One of the reviews has Spanish words, almost all the reviews are English so it's not surprising that that all three classifier got that predictions wrong. 
+We can see that the classifiers have a hard time differentiating between 4 and 5 star reviews and 2 and 1 star reviews. One of the reviews has Spanish words, almost all the reviews are English so it's not surprising that that all three classifier got that predictions wrong.
 
 The final model does a good job of finding the general sentiment of a review. If you want to determine if a review is positive or negative, then this model is probably good enough. If you want a model that can differentiate between similar star ratings (like 3-star and 4-star reviews), then more work needs to be done. 
 
@@ -257,7 +311,9 @@ The final model does a good job of finding the general sentiment of a review. If
 
 #### Word Cloud
 
-![Word Cloud](images/wordCloud.png)\
+When we look at the top phrases from TF-IDF we should see some similarities with the following generated word cloud:
+
+![Word Cloud\label{WordCloud}](images/wordCloud.png)
 
 
 ### Reflection
